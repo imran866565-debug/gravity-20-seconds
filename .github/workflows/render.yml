@@ -1,0 +1,61 @@
+name: Render video
+
+on:
+  push:
+    paths:
+      - 'gravity-20-seconds/**'
+      - 'studio/**'
+      - '.github/workflows/render.yml'
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Generate male voiceover
+        run: |
+          python3 -m pip install -q edge-tts
+          cd gravity-20-seconds && python3 gen_voice.py && ffprobe -v error -show_entries format=duration -of csv=p=0 voice.mp3
+
+      - name: Time the voiceover and patch cut points
+        run: |
+          python3 studio/tools/timing.py gravity-20-seconds/voice.mp3 gravity-20-seconds/beats.txt | tee timing.txt
+          python3 - <<'EOF'
+          import re
+          txt = open('timing.txt').read()
+          b = re.search(r'const B = \[[^\]]+\];', txt).group(0)
+          p = 'gravity-20-seconds/shots.js'
+          s = open(p).read()
+          open(p, 'w').write(re.sub(r'const B = \[[^\]]+\];', b, s, count=1))
+          print('patched B:', b)
+          EOF
+
+      - name: Install studio deps
+        run: cd studio && npm install && npm install playwright && npx playwright install --with-deps chromium
+
+      - name: Render
+        run: node studio/render.js gravity-20-seconds --audio gravity-20-seconds/voice.mp3 --out gravity-20-seconds.mp4 --size 1280x720
+
+      - name: Probe output
+        run: |
+          ls -la gravity-20-seconds/out/
+          ffprobe -v error -show_entries format=duration -of csv=p=0 gravity-20-seconds/out/gravity-20-seconds.mp4
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v1.0 gravity-20-seconds/out/gravity-20-seconds.mp4 \
+            --title "What If Gravity Switched Off for 20 Seconds?" \
+            --notes "20-second 3D Kaz short, rendered on GitHub Actions. Hypothetical scenario, no real people. Male voiceover (edge-tts, en-US-GuyNeural); cut timing estimated from pauses in the voiceover."
