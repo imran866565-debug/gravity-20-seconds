@@ -16,13 +16,13 @@ voiceover, HUD counters and captions, encoded with FFmpeg.
 5. Twenty seconds of weightlessness. A very long way down.
 
 No people appear anywhere in the video — street, house, car, chairs,
-books and water only. Voiceover is a male voice (KittenTTS). Timing of the
+books and water only. Voiceover is a male voice (edge-tts, en-US-GuyNeural), generated in CI. Timing of the
 cuts was estimated from pauses in the voiceover.
 
 ## How it is made
 
 - `gravity-20-seconds/` — the project: `shots.js` (the five shots),
-  `beats.txt` (the script), `voice.mp3` (the voiceover).
+  `beats.txt` (the script), `gen_voice.py` (generates the voiceover in CI with edge-tts).
 - `studio/` — the 3D Kaz renderer, **unmodified**, included under its own
   licence (`LICENSE`, 3D Kaz Free Use License v1.0, Copyright 2026 GrowKaz).
   It is shared here for free, as the licence allows, so the video can be
